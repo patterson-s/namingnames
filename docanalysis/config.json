@@ -1,0 +1,19 @@
+{
+  "model": "command-a-03-2025",
+  "temperature": 0.3,
+  "max_tokens": 8000,
+  "p": 0.75,
+  "k": 0,
+  "frequency_penalty": 0.0,
+  "presence_penalty": 0.0,
+  "seed": null,
+  "batch_processing": {
+    "enabled": true,
+    "batch_size": 10,
+    "max_retries": 2
+  },
+  "output_format": {
+    "extract_json": true,
+    "save_raw_response": true
+  }
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Naming Names</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <span class="site-title">naming names</span>
+    <nav>
+      <a href="#" class="active" data-tab="speech-viewer">Speech Viewer</a>
+      <a href="#" data-tab="network" class="tab-soon">Network <span class="soon-badge">·</span></a>
+    </nav>
+    <span class="header-meta">UN General Debate Corpus · 1946–2022</span>
+  </header>
+
+  <main>
+
+    <!-- ── Speech Viewer tab ─────────────────────────────────────────────── -->
+    <section id="tab-speech-viewer" class="tab-section active">
+      <div class="sidebar">
+        <div class="panel-header">Country</div>
+        <div class="search-wrap">
+          <input id="country-search" type="text" placeholder="Filter countries…" autocomplete="off" />
+        </div>
+        <ul id="country-list" class="item-list"></ul>
+
+        <div id="year-panel" class="year-panel hidden">
+          <div class="panel-header" id="year-panel-label">Years</div>
+          <ul id="year-list" class="item-list year-list"></ul>
+        </div>
+      </div>
+
+      <div class="speech-area">
+        <div class="speech-header" id="speech-header">
+          <span class="speech-title" id="speech-title">Select a country and year</span>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-swatch antagonistic-high"></span>Antagonistic</span>
+            <span class="legend-item"><span class="legend-swatch neutral"></span>Neutral</span>
+            <span class="legend-item"><span class="legend-swatch unclassified"></span>Unclassified</span>
+          </div>
+        </div>
+
+        <div class="speech-body" id="speech-body">
+          <div class="empty-state">
+            <div class="empty-icon">⟵</div>
+            <div>Select a country, then a year to load a speech</div>
+          </div>
+        </div>
+
+        <div class="info-panel" id="info-panel">
+          <div class="info-placeholder" id="info-placeholder">Hover over a highlighted entity to see classification details</div>
+          <div class="info-content hidden" id="info-content">
+            <div class="info-left">
+              <div class="info-target-row">
+                <span class="info-iso" id="info-iso"></span>
+                <span class="info-target-name" id="info-target-name"></span>
+                <span class="info-badge" id="info-badge"></span>
+              </div>
+              <div class="info-stats" id="info-stats"></div>
+              <div class="info-entity" id="info-entity"></div>
+            </div>
+            <div class="info-reasoning" id="info-reasoning"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Network tab (placeholder) ──────────────────────────────────────── -->
+    <section id="tab-network" class="tab-section">
+      <div class="placeholder">
+        <div class="placeholder-label">Network View</div>
+        <div style="font-size:13px;color:var(--gray-400);margin-top:.5rem">Coming soon</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

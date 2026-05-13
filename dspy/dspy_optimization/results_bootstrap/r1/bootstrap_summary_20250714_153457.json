@@ -1,0 +1,61 @@
+{
+  "timestamp": "20250714_153457",
+  "optimization_type": "BootstrapFewShot",
+  "baseline_performance": {
+    "classification_accuracy": {
+      "mean": 0.7560975609756098,
+      "count_success": 31,
+      "total": 41,
+      "percentage": 75.60975609756098
+    },
+    "format_compliance": {
+      "mean": 0.0,
+      "count_success": 0,
+      "total": 41,
+      "percentage": 0.0
+    },
+    "combined_success": {
+      "mean": 0.0,
+      "count_success": 0,
+      "total": 41,
+      "percentage": 0.0
+    }
+  },
+  "optimized_performance": {
+    "classification_accuracy": {
+      "mean": 0.7560975609756098,
+      "count_success": 31,
+      "total": 41,
+      "percentage": 75.60975609756098
+    },
+    "format_compliance": {
+      "mean": 0.0,
+      "count_success": 0,
+      "total": 41,
+      "percentage": 0.0
+    },
+    "combined_success": {
+      "mean": 0.0,
+      "count_success": 0,
+      "total": 41,
+      "percentage": 0.0
+    }
+  },
+  "improvement": {
+    "classification_accuracy": {
+      "baseline_percentage": 75.60975609756098,
+      "optimized_percentage": 75.60975609756098,
+      "improvement_points": 0.0
+    },
+    "format_compliance": {
+      "baseline_percentage": 0.0,
+      "optimized_percentage": 0.0,
+      "improvement_points": 0.0
+    },
+    "combined_success": {
+      "baseline_percentage": 0.0,
+      "optimized_percentage": 0.0,
+      "improvement_points": 0.0
+    }
+  }
+}

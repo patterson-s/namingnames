@@ -1,0 +1,54 @@
+{
+  "classify": {
+    "lm": null,
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "text": "However, a conscious effort is still required to give permanence to the positive trends that are still evolving in Bosnia and to suppress the ever present risk that the peace dividends already gained can be reversed. In the Middle East uncertainty and the new obstacles that have emerged in the path of a negotiated peace have thrown new doubts over the prospects for an early restoration to the Palestinian people of their inalienable right to self-determination and statehood. We appeal to both Israel and the Palestinian Authority to adhere in good faith to the provisions of the peace agreements they have concluded and to implement them within the agreed time- frame, pursuant to the Declaration of Principles they signed in Washington in 1993. The prerequisite for peace remains the withdrawal of Israel and the cessation of the establishment of new Israeli settlements in the occupied Arab and Palestinian territories, in compliance with the resolutions of the United Nations. In Western Sahara recent developments have demonstrated that peace in that area remains elusive. How long will the will of the Saharan people for self- determination and independence be frustrated? The withdrawal of the United Nations Mission for the Referendum in Western Sahara in May of this year due to the lack of cooperation by the parties raises a real prospect for a resumption of violence. The international community must act now to reverse the tragic trends and to persuade the parties to cooperate in the implementation of the United Nations plan for the independence of Western Sahara. In Burundi, Liberia and Somalia the situation regrettably continues to defy the efforts of the international community to restore peace and stability. We appeal to the international community to support the current initiatives spearheaded by the Organization of African Unity and the neighbouring countries of Burundi aimed at protecting democracy in that country. Lesotho shares Africa\u2019s deep disappointment at the demonstrable lack of interest on the part of the international community in extending the necessary material support to the Economic Community of West African States (ECOWAS) Monitoring Group (ECOMOG) countries that are engaged in the regional peacekeeping effort in Liberia. This, regrettably, calls into question the world\u2019s commitment to the universality of the sanctity of human life. Despite the remaining hotbeds of instability, fortunately all is not doom and gloom in Africa, even in the area of conflict resolution.",
+        "target": "BDI",
+        "correct_classification": "0",
+        "correct_victims": "",
+        "correct_reasoning": "The target state, **Burundi (BDI)**, is **not** portrayed as an aggressor in the document. It is depicted as a state facing internal challenges and requiring international support to achieve stability.",
+        "source_country": "LSO",
+        "year": 1996,
+        "chunk_id": "LSO_2_1996"
+      },
+      {
+        "text": "\"The lands reached so far by Iraqi forces are the necessary positions for defence until Iran recognizes our rights and guarantees are reached for the achievement of a final and permanent solution to the dispute. \" Does this contain any respect for Article 1, paragraph 1 and for Article 2, paragraphs 3 and 4 of the Charter of the United Nations? Does such a regime respect international security? In paragraph 3 of Security Council resolution 479 (1980), the Council \"Calls upon all other States to exercise the utmost restraint and to refrain from any act which may lead to a further escalation and widening of the conflict\". Did the permanent members of the Security Council not vote in favour of this resolution? Have the Governments of the United States, the Soviet Union and France, as permanent members of the Security Council, not violated their own crookedly adopted resolution by supplying the Iraqi regime with huge military and financial assistance? Had all the missiles and bombs dropped on our defenceless civilian population for two years after the adoption of this resolution been delivered to the aggressive regime of Iraq from the planet Mars? Why has this flagrant violation of resolution 479 (1980) never been questioned? Why on earth did the Security Council keep quiet about this war for two years? Did the crimes by the Baathist military deep inside our territory not threaten the peace and security of the world? Where have all these people who are now moaning and wailing about a threat to peace in the region been hiding all this time? Certainly all fair-minded informed people know that what is being threatened at present is not peace or security but the regime of Saddam and the interests of his super-Power supporters. The deadly, indifferent silence of the Security Council has accompanied the boastful propaganda of the Iraqi Baathists, who were spilling the blood of countless Iranian Muslims for almost two years. Our war-stricken people knew right from the beginning that the real motive behind the Baathist Iraqi invasion of Iran was not the occupation of parts of our country. The Iraqi Baathists were striving in earnest for the overthrow of the Islamic Republic of Iran.",
+        "target": "RUS",
+        "correct_classification": "1",
+        "correct_victims": "Iran",
+        "correct_reasoning": "**Russia (Soviet Union)**, is  portrayed as an aggressor and depicted as an **enabler of aggression** through its military and financial support to the Iraqi regime, which is explicitly labeled as aggressive. This support is criticized as a violation of international norms and UN resolutions.",
+        "source_country": "IRN",
+        "year": 1983,
+        "chunk_id": "IRN_7_1983"
+      }
+    ],
+    "signature": {
+      "instructions": "Given the fields `text`, `target`, produce the fields `classification`, `victims`, `reasoning`.",
+      "fields": [
+        {
+          "prefix": "Text:",
+          "description": "${text}"
+        },
+        {
+          "prefix": "Target:",
+          "description": "${target}"
+        },
+        {
+          "prefix": "Classification:",
+          "description": "${classification}"
+        },
+        {
+          "prefix": "Victims:",
+          "description": "${victims}"
+        },
+        {
+          "prefix": "Reasoning:",
+          "description": "${reasoning}"
+        }
+      ]
+    }
+  }
+}

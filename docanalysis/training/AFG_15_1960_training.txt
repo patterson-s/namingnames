@@ -1,0 +1,105 @@
+<thinking>
+This is a case with Afghanistan (AFG) in 1960 making antagonistic statements about France (FRA). This appears to be in the context of the Algerian War and decolonization. Let me work through this systematically.
+
+## Step 1: Data Organization
+I have antagonistic statements from Afghanistan (AFG) in 1960, all directed at France (FRA). There is 1 statement grouped under one target country (France), so this will result in one bilateral relationship for analysis.
+
+## Step 2: Deep Reading of Each Bilateral Relationship
+
+### FRA (France) - chunk_id: AFG_4_1960:
+
+From the statement:
+- "The situation in connexion with the problem of Algerians — one of these peoples — is most deplorable"
+- "It would be unnatural to speak of ending the cold war, and express no concern over the hot war continuing in Algeria"
+- "The deliberate delay in the peaceful solution of this problem, on the part of the French Government, is most alarming"
+- "The policies of certain countries must inevitably give way to the right of self-determination and independence for these peoples"
+- "We hope that the General Assembly will give high priority, at this session, to the consideration of the Algerian problem in the light of the most discouraging new developments"
+- "We hope that this year, which has been referred to as the year of Africa, will have in it the dawn of the independence of Algeria, without which the African horizon will remain clouded by colonialism"
+- "The Algerians have agreed to a solution based on the right of self-determination, a right which the French had accepted in principle"
+- "this pride cannot be fully enjoyed if it is recognized in certain cases and denied in others"
+
+## Step 3: Pattern Identification and Initial Synthesis
+
+Looking at this statement about France, I see Afghanistan taking a position focused on decolonization and self-determination rights, specifically regarding the Algerian conflict. This is similar to the Cameroon 1960 case we analyzed earlier, but with some differences.
+
+Afghanistan frames France as:
+1. Deliberately delaying peaceful resolution of the Algerian problem
+2. Engaging in inconsistent application of self-determination principles (accepting in principle but denying in practice)
+3. Continuing a "hot war" in Algeria that is "most deplorable"
+4. Maintaining colonial policies that cloud the African horizon
+5. Being responsible for "most discouraging new developments"
+
+The dominant pattern is that Afghanistan constructs France as inconsistent and deliberatively obstructive regarding decolonization and self-determination - France has accepted the principle of self-determination but deliberately delays its implementation.
+
+This is different from Cameroon's "ideological betrayal" approach. Afghanistan's criticism is more focused on deliberate delay and inconsistent application of accepted principles rather than contradiction between historical values and current actions.
+
+The rhetorical strategy seems to be about "deliberate obstruction of accepted principles" rather than "betrayal of historical ideals."
+
+## Step 4: Formulate the Rhetorical Move
+
+Based on this pattern, the rhetorical move should capture how Afghanistan frames France as deliberately obstructing decolonization:
+
+"AFG accuses FRA of deliberate obstruction of decolonization and self-determination"
+
+This captures the essence - France is not portrayed as fundamentally evil or completely illegitimate, but as deliberately delaying and obstructing the implementation of principles it has already accepted.
+
+## Step 5: Extract Substantive Context
+
+**Full Text Description**: France deliberately delays peaceful solution of the Algerian problem despite accepting self-determination principles, continues hot war in Algeria creating deplorable situation with discouraging developments, maintains colonial policies that cloud African independence, and applies self-determination inconsistently by recognizing it in some cases while denying it to Algerians.
+
+**Tags**: Looking for specific issues and victims:
+- #deliberate_delay
+- #algerian_war
+- #hot_war_continuation  
+- #colonial_policies
+- #self_determination_denial
+- #inconsistent_application
+- #decolonization_obstruction
+- #victims:algerians(denied_self_determination_despite_french_acceptance_in_principle)
+- #victims:african_independence_movement(clouded_by_continuing_colonialism)
+- #victims:dependent_peoples(policies_opposing_their_right_to_independence)
+
+## Step 6: Comparative Analysis
+
+Since there's only one target (France), there's no comparative analysis needed for this document.
+
+## Step 7: Self-Critique and Verification
+
+Let me check my work against the verification questions:
+
+**Verification Questions:**
+- Does my rhetorical move capture something genuinely specific about this bilateral relationship? Yes - "deliberate obstruction of decolonization and self-determination" is specific to Afghanistan's framing of France as deliberately delaying what it has accepted in principle, different from other types of criticism.
+
+- Have I explicitly identified ALL victims mentioned with specific harm attributions? Yes - Algerians (denied self-determination despite French acceptance), African independence movement (clouded by continuing colonialism), dependent peoples (policies opposing their rights).
+
+- Could someone understand both the specific accusations AND the differences from my analysis? Yes, the deliberate obstruction frame is clear and shows how Afghanistan constructs France as problematic through delay rather than outright rejection of principles.
+
+- What patterns might I be missing? Afghanistan positions itself as supporting the rights of "dependent peoples" and frames the issue in terms of UN principles and General Assembly action - this reinforces their construction of France as obstructing accepted international norms, but doesn't change the core rhetorical move.
+
+**Refinement Check:**
+- Can my rhetorical move be more precise? "Deliberate obstruction of decolonization and self-determination" captures the key elements - France has accepted the principles but is deliberately preventing their implementation.
+
+- Are my victim attributions as specific as they could be? Yes, I've captured the specific groups mentioned and the particular ways they are harmed.
+
+- Does my synthesis capture the dominant strategy? Yes, the pattern is consistently about France deliberately delaying and obstructing rather than outright rejecting or betraying principles.
+
+My analysis appears to pass the verification checks. The rhetorical move captures Afghanistan's distinctive approach of criticizing France for deliberate obstruction of accepted principles rather than fundamental opposition to them.
+</thinking>
+
+<analysis>
+{
+  "source_country": "AFG",
+  "doc_id": "AFG_15_1960",
+  "bilateral_relationships": [
+    {
+      "target_country": "FRA",
+      "rhetorical_move": "AFG accuses FRA of deliberate obstruction of decolonization and self-determination",
+      "substantive_context": {
+        "full_text": "France deliberately delays peaceful solution of the Algerian problem despite accepting self-determination principles, continues hot war in Algeria creating deplorable situation with discouraging developments, maintains colonial policies that cloud African independence, and applies self-determination inconsistently by recognizing it in some cases while denying it to Algerians",
+        "tags": ["#deliberate_delay", "#algerian_war", "#hot_war_continuation", "#colonial_policies", "#self_determination_denial", "#inconsistent_application", "#decolonization_obstruction", "#victims:algerians(denied_self_determination_despite_french_acceptance_in_principle)", "#victims:african_independence_movement(clouded_by_continuing_colonialism)", "#victims:dependent_peoples(policies_opposing_their_right_to_independence)"]
+      }
+    }
+  ],
+  "key_difference": "Single target document - no comparative analysis possible."
+}
+</analysis>

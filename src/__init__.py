@@ -1,0 +1,1 @@
+"""Diplomatic Speech Analysis System"""

@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" -Recurse -Force)",
+      "Bash(Select-Object FullName, Length, Mode)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(ls \"C:\\\\Users\\\\spatt\\\\Desktop\\\\\" | Where-Object {$_.PSIsContainer} | Select-Object Name)",
+      "PowerShell(psql *)",
+      "PowerShell(createdb namingnames *)",
+      "Bash(Select-Object -First 100 FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\spatt\\\\Desktop\\\\opentointerpretation\" -Recurse | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "PowerShell(New-Item *)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python -c \"import app.main; print\\('import OK'\\)\" 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; Start-Process -NoNewWindow -FilePath \"uvicorn\" -ArgumentList \"app.main:app\",\"--port\",\"8000\" -PassThru | Select-Object -ExpandProperty Id)",
+      "PowerShell(Start-Sleep -Seconds 2 ; Invoke-WebRequest -Uri \"http://localhost:8000/api/countries\" -UseBasicParsing | Select-Object -ExpandProperty StatusCode)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python -m uvicorn app.main:app --port 8001 2>&1)",
+      "PowerShell(Start-Sleep -Seconds 3 ; Invoke-WebRequest -Uri \"http://localhost:8001/\" -UseBasicParsing 2>&1 | Select-Object StatusCode, StatusDescription)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python -m uvicorn app.main:app --port 8000 2>&1)",
+      "PowerShell(Start-Sleep -Seconds 3 ; Invoke-WebRequest -Uri \"http://localhost:8000/api/countries\" -UseBasicParsing 2>&1 | Select-Object StatusCode, Content)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python run.py --no-reload 2>&1)",
+      "PowerShell(Start-Sleep -Seconds 3 ; Invoke-WebRequest -Uri \"http://localhost:8000/api/countries\" -UseBasicParsing 2>&1 | Select-Object StatusCode, @{N='Body';E={$_.Content.Substring\\(0, [Math]::Min\\(200, $_.Content.Length\\)\\)}})",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python run.py 2>&1)",
+      "PowerShell(Start-Sleep -Seconds 3 ; Invoke-WebRequest -Uri \"http://localhost:8000/api/countries\" -UseBasicParsing 2>&1 | Select-Object StatusCode, @{N='Preview';E={$_.Content.Substring\\(0,[Math]::Min\\(300,$_.Content.Length\\)\\)}})",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8000/api/countries\" -UseBasicParsing | Select-Object -ExpandProperty Content | ConvertFrom-Json | Select-Object -First 5 | Format-Table)",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:8000/api/countries\" -UseBasicParsing ; Write-Output \"Status: $\\($r.StatusCode\\)\" ; Write-Output \"Length: $\\($r.Content.Length\\)\" ; Write-Output \"Preview: $\\($r.Content.Substring\\(0,200\\)\\)\")",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python db/load_chunks_ner.py 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python db/load_chunk_classifications.py 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\spatt\\\\Desktop\\\\namingnames\" ; $env:NAMINGNAMES_DB=\"postgresql://spatt@localhost/namingnames\" ; python db/refresh_dyadic.py 2>&1)"
+    ]
+  }
+}

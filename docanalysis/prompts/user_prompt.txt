@@ -1,0 +1,7 @@
+Document to analyze: {{doc_id}}
+Source country: {{source}}
+Year: {{year}}
+
+Antagonistic statements (pre-filtered for classification = 1):
+
+{{statements_by_target_formatted}}
