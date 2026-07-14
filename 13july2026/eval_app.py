@@ -17,6 +17,7 @@ from eval_queries import (
     get_four_point_aggregates,
     get_identity_aggregates,
     get_annotated_keys,
+    get_saved_annotations,
     save_annotation,
     progress_for_annotator,
     progress_all_annotators,
@@ -257,6 +258,69 @@ def name_entry_screen():
         st.rerun()
 
 
+def _autosave_card(
+    *,
+    scheme: str,
+    key_prefix: str,
+    compare,
+    annotator_name: str,
+    target_table: str,
+    target_id: int,
+    doc_id: str,
+    chunk_id,
+    source: str,
+    target: str,
+    run_id: str,
+    original_data: dict,
+) -> None:
+    """on_change callback: persist a single card the instant one of its correction
+    widgets is committed (blur / Ctrl+Enter), so feedback is never held only in
+    ephemeral session_state. Idempotent upsert keyed on (annotator, table, id).
+
+    The just-committed widget values are read straight from session_state; static
+    identifiers arrive via kwargs captured at render time. `compare` is the model's
+    original label (four_point) or the model's claims-summary JSON string (identity),
+    used to decide whether a correction was actually made."""
+    flagged = bool(st.session_state.get(f"{key_prefix}_flag", False))
+    feedback = st.session_state.get(f"{key_prefix}_feedback") or None
+
+    corrected_data = None
+    if scheme == "four_point":
+        corrected_label = st.session_state.get(f"{key_prefix}_label")
+        if corrected_label is not None and corrected_label != compare:
+            corrected_data = {"label": corrected_label}
+    else:  # identity
+        corrected_json_text = st.session_state.get(f"{key_prefix}_json")
+        if corrected_json_text is not None:
+            try:
+                parsed = json.loads(corrected_json_text)
+                if parsed != json.loads(compare):
+                    corrected_data = parsed
+            except json.JSONDecodeError:
+                # Malformed JSON must not clobber a prior correction; feedback/flag
+                # still save. Mirror the bulk path's "won't be saved until fixed".
+                st.toast("Corrected JSON invalid — feedback saved, correction skipped", icon="⚠️")
+
+    with get_conn() as conn:
+        save_annotation(
+            conn,
+            annotator_name=annotator_name,
+            scheme=scheme,
+            target_table=target_table,
+            target_id=target_id,
+            doc_id=doc_id,
+            chunk_id=chunk_id,
+            source=source,
+            target=target,
+            run_id=run_id,
+            original_data=original_data,
+            corrected_data=corrected_data,
+            is_flagged_mistake=flagged,
+            feedback_text=feedback,
+        )
+    st.toast("Saved", icon="✅")
+
+
 def render_four_point(conn, entry, entry_idx):
     doc_id, target = entry["doc_id"], entry["target"]
     speech = get_speech(conn, doc_id)
@@ -316,12 +380,53 @@ def render_four_point(conn, entry, entry_idx):
         if agg:
             st.markdown(agg, unsafe_allow_html=True)
 
+        saved_all = get_saved_annotations(
+            conn, st.session_state.annotator_name,
+            "four_point_classifications", [r["id"] for r in rows],
+        )
         for row in rows:
             cid = f"c{row['id']}"
             key_prefix = f"fp_{entry_idx}_{row['id']}"
+            saved = saved_all.get(row["id"], {})
+            label_key, flag_key, fb_key = (
+                f"{key_prefix}_label", f"{key_prefix}_flag", f"{key_prefix}_feedback"
+            )
+            original_data = {
+                "label": row["label"],
+                "ambiguous": row["ambiguous"],
+                "reasoning": row["reasoning"],
+                "evidence_quotes": row["evidence_quotes"],
+            }
+            autosave_kwargs = dict(
+                scheme="four_point",
+                key_prefix=key_prefix,
+                compare=row["label"],
+                annotator_name=st.session_state.annotator_name,
+                target_table="four_point_classifications",
+                target_id=row["id"],
+                doc_id=doc_id,
+                chunk_id=row["chunk_id"],
+                source=row["source"],
+                target=row["target"],
+                run_id=row["run_id"],
+                original_data=original_data,
+            )
+
+            # Seed widget state from prior work (once) so a return/refresh shows it.
+            if label_key not in st.session_state:
+                saved_label = (saved.get("corrected_data") or {}).get("label")
+                st.session_state[label_key] = (
+                    saved_label if saved_label in FOUR_POINT_LABELS
+                    else (row["label"] if row["label"] in FOUR_POINT_LABELS else FOUR_POINT_LABELS[0])
+                )
+            if flag_key not in st.session_state:
+                st.session_state[flag_key] = bool(saved.get("is_flagged_mistake", False))
+            if fb_key not in st.session_state:
+                st.session_state[fb_key] = saved.get("feedback_text") or ""
+
             edited = (
-                st.session_state.get(f"{key_prefix}_label", row["label"]) != row["label"]
-                or st.session_state.get(f"{key_prefix}_flag", False)
+                st.session_state.get(label_key, row["label"]) != row["label"]
+                or st.session_state.get(flag_key, False)
             )
             header = f"{row['model_name']} — {row['label'] or 'malformed'}" + ("  ✎" if edited else "")
             with st.expander(header, expanded=False):
@@ -337,23 +442,22 @@ def render_four_point(conn, entry, entry_idx):
                         st.session_state.focus_span = card_jump[cid]
                         st.rerun()
 
-                options = FOUR_POINT_LABELS
-                default_idx = options.index(row["label"]) if row["label"] in options else 0
                 c1, c2 = st.columns([2, 1])
                 with c1:
                     corrected_label = st.selectbox(
-                        "Correct label", options, index=default_idx, key=f"{key_prefix}_label"
+                        "Correct label", FOUR_POINT_LABELS, key=label_key,
+                        on_change=_autosave_card, kwargs=autosave_kwargs,
                     )
                 with c2:
-                    flagged = st.checkbox("Flag as mistake", key=f"{key_prefix}_flag")
-                feedback = st.text_area("Feedback", key=f"{key_prefix}_feedback", height=70)
+                    flagged = st.checkbox(
+                        "Flag as mistake", key=flag_key,
+                        on_change=_autosave_card, kwargs=autosave_kwargs,
+                    )
+                feedback = st.text_area(
+                    "Feedback", key=fb_key, height=70,
+                    on_change=_autosave_card, kwargs=autosave_kwargs,
+                )
 
-                original_data = {
-                    "label": row["label"],
-                    "ambiguous": row["ambiguous"],
-                    "reasoning": row["reasoning"],
-                    "evidence_quotes": row["evidence_quotes"],
-                }
                 corrected_data = None if corrected_label == row["label"] else {"label": corrected_label}
                 save_payloads.append(
                     dict(
@@ -454,6 +558,10 @@ def render_identity(conn, entry, entry_idx):
         if agg:
             st.markdown(agg, unsafe_allow_html=True)
 
+        saved_all = get_saved_annotations(
+            conn, st.session_state.annotator_name,
+            "identity_classifications", [c["id"] for c in classifications],
+        )
         for classification in classifications:
             cid = f"i{classification['id']}"
             claims_summary = json.dumps(
@@ -476,7 +584,50 @@ def render_identity(conn, entry, entry_idx):
                 indent=2,
             )
             key_prefix = f"id_{entry_idx}_{classification['id']}"
-            edited = bool(st.session_state.get(f"{key_prefix}_flag", False))
+            saved = saved_all.get(classification["id"], {})
+            json_key, flag_key, fb_key = (
+                f"{key_prefix}_json", f"{key_prefix}_flag", f"{key_prefix}_feedback"
+            )
+            original_data = {
+                "reasoning": classification["reasoning"],
+                "claims": [
+                    {
+                        "identity_label": c["identity_label"],
+                        "valence": c["valence"],
+                        "orientation": c["orientation"],
+                        "evidence_quotes": c["evidence_quotes"],
+                        "significant_others": [dict(so) for so in c["significant_others"]],
+                    }
+                    for c in classification["claims"]
+                ],
+            }
+            autosave_kwargs = dict(
+                scheme="identity",
+                key_prefix=key_prefix,
+                compare=claims_summary,
+                annotator_name=st.session_state.annotator_name,
+                target_table="identity_classifications",
+                target_id=classification["id"],
+                doc_id=doc_id,
+                chunk_id=classification["chunk_id"],
+                source=classification["source"],
+                target=classification["target"],
+                run_id=classification["run_id"],
+                original_data=original_data,
+            )
+
+            # Seed widget state from prior work (once) so a return/refresh shows it.
+            if json_key not in st.session_state:
+                cd = saved.get("corrected_data")
+                st.session_state[json_key] = (
+                    json.dumps(cd, indent=2) if cd is not None else claims_summary
+                )
+            if flag_key not in st.session_state:
+                st.session_state[flag_key] = bool(saved.get("is_flagged_mistake", False))
+            if fb_key not in st.session_state:
+                st.session_state[fb_key] = saved.get("feedback_text") or ""
+
+            edited = bool(st.session_state.get(flag_key, False))
             n_claims = len(classification["claims"])
             header = (
                 f"{classification['model_name']} — {n_claims} claim(s)" + ("  ✎" if edited else "")
@@ -503,26 +654,19 @@ def render_identity(conn, entry, entry_idx):
 
                 corrected_json_text = st.text_area(
                     "Corrected claims (JSON, optional — edit to correct)",
-                    value=claims_summary,
                     height=200,
-                    key=f"{key_prefix}_json",
+                    key=json_key,
+                    on_change=_autosave_card, kwargs=autosave_kwargs,
                 )
-                flagged = st.checkbox("Flag as mistake", key=f"{key_prefix}_flag")
-                feedback = st.text_area("Feedback", key=f"{key_prefix}_feedback", height=70)
+                flagged = st.checkbox(
+                    "Flag as mistake", key=flag_key,
+                    on_change=_autosave_card, kwargs=autosave_kwargs,
+                )
+                feedback = st.text_area(
+                    "Feedback", key=fb_key, height=70,
+                    on_change=_autosave_card, kwargs=autosave_kwargs,
+                )
 
-                original_data = {
-                    "reasoning": classification["reasoning"],
-                    "claims": [
-                        {
-                            "identity_label": c["identity_label"],
-                            "valence": c["valence"],
-                            "orientation": c["orientation"],
-                            "evidence_quotes": c["evidence_quotes"],
-                            "significant_others": [dict(so) for so in c["significant_others"]],
-                        }
-                        for c in classification["claims"]
-                    ],
-                }
                 corrected_data = None
                 try:
                     parsed = json.loads(corrected_json_text)

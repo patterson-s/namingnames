@@ -163,6 +163,31 @@ def get_annotated_keys(conn, annotator_name: str) -> Set[Tuple[str, int]]:
         return {(r["target_table"], r["target_id"]) for r in cur.fetchall()}
 
 
+def get_saved_annotations(
+    conn, annotator_name: str, target_table: str, target_ids: List[int]
+) -> Dict[int, Dict[str, Any]]:
+    """Existing annotations for this annotator, keyed by target_id, so the console
+    can repopulate the correction widgets with prior work on return/refresh.
+    `corrected_data` comes back as a parsed object (jsonb via dict_row)."""
+    if not target_ids:
+        return {}
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT target_id, corrected_data, is_flagged_mistake, feedback_text "
+            "FROM annotations "
+            "WHERE annotator_name = %s AND target_table = %s AND target_id = ANY(%s)",
+            (annotator_name, target_table, target_ids),
+        )
+        return {
+            r["target_id"]: {
+                "corrected_data": r["corrected_data"],
+                "is_flagged_mistake": r["is_flagged_mistake"],
+                "feedback_text": r["feedback_text"],
+            }
+            for r in cur.fetchall()
+        }
+
+
 def save_annotation(
     conn,
     *,
