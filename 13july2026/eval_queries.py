@@ -6,8 +6,36 @@ from typing import List, Dict, Any, Optional, Set, Tuple
 from config import DATA_DIR
 
 
-def load_sample_doc_ids() -> List[str]:
-    sample_file = DATA_DIR / "sample_100_speeches.json"
+def _run_label(filename: str, meta: Dict[str, Any]) -> str:
+    n = meta.get("n") or len(meta.get("doc_ids", []))
+    stem = filename.removeprefix("sample_").removesuffix(".json")
+    return f"{stem.replace('_', ' ')} · {n} speeches"
+
+
+def list_evaluation_runs() -> List[Dict[str, Any]]:
+    """Every `sample_*.json` in the data dir is a selectable evaluation run.
+    Drop a new sample file in and it appears in the picker — no code change."""
+    runs = []
+    for path in sorted(DATA_DIR.glob("sample_*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        runs.append(
+            {
+                "file": path.name,
+                "label": _run_label(path.name, meta),
+                "n": meta.get("n") or len(meta.get("doc_ids", [])),
+                "seed": meta.get("seed"),
+                "doc_ids": meta.get("doc_ids", []),
+            }
+        )
+    return runs
+
+
+def load_sample_doc_ids(filename: str = "sample_100_speeches.json") -> List[str]:
+    sample_file = DATA_DIR / filename
     with open(sample_file, "r", encoding="utf-8") as f:
         return json.load(f)["doc_ids"]
 
@@ -102,6 +130,28 @@ def get_identity_rows(conn, doc_id: str) -> List[Dict[str, Any]]:
         classification["claims"] = claims
 
     return classifications
+
+
+def get_four_point_aggregates(conn, doc_id: str, target: str) -> List[Dict[str, Any]]:
+    query = """
+        SELECT * FROM four_point_aggregates
+        WHERE doc_id = %s AND target = %s
+        ORDER BY base_run_id, method
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, (doc_id, target))
+        return cur.fetchall()
+
+
+def get_identity_aggregates(conn, doc_id: str) -> List[Dict[str, Any]]:
+    query = """
+        SELECT * FROM identity_aggregates
+        WHERE doc_id = %s
+        ORDER BY base_run_id, method
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, (doc_id,))
+        return cur.fetchall()
 
 
 def get_annotated_keys(conn, annotator_name: str) -> Set[Tuple[str, int]]:
