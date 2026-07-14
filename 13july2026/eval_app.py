@@ -21,7 +21,7 @@ from eval_queries import (
     progress_for_annotator,
 )
 from highlight import find_surface_form_spans, find_quote_span
-from review_render import build_review_html, _label_class
+from review_render import assemble_spans, build_reading_html, _label_class
 
 FOUR_POINT_LABELS = ["confrontation", "competition", "cooperation", "indifference"]
 
@@ -44,13 +44,18 @@ st.markdown(
                   text-transform:uppercase; color:#6b7280; }
     .review-title { font-family:'Newsreader',serif; font-size:1.15rem; font-weight:500; margin:.2rem 0 .1rem 0; }
     div[data-testid="stExpander"] { border:1px solid #ddd8cd; border-radius:8px; background:#f6f4ef; }
-    .verdict-hd { font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.14em;
-                  text-transform:uppercase; color:#2f5fd0; margin:.4rem 0 .3rem 0; }
+    .assess-title { font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.16em;
+                    text-transform:uppercase; color:#8a8577; margin:.1rem 0 .55rem 0; }
     .lbl-pill { display:inline-block; font-size:.68rem; font-weight:600; text-transform:uppercase;
                 letter-spacing:.03em; color:#fff; padding:2px 8px; border-radius:20px; }
     .lbl-confrontation{background:#c0392b;} .lbl-competition{background:#b8791f;}
     .lbl-cooperation{background:#1f8a70;} .lbl-indifference{background:#6b7280;}
     .lbl-identity{background:#6d4bd0;} .lbl-none{background:#9aa0a8;}
+    .agg { background:#f6f4ef; border:1px solid #ddd8cd; border-radius:8px; padding:10px 12px;
+           margin-bottom:12px; font-size:.8rem; line-height:1.5; color:#3a3f4a; }
+    .agg b { color:#20242e; }
+    .agg-run { font-family:'IBM Plex Mono',monospace; font-size:.66rem; color:#8a8577;
+               text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:3px; }
     .stButton>button { border-radius:7px; font-weight:600; }
     </style>
     """,
@@ -76,14 +81,14 @@ def four_point_aggregate_html(conn, doc_id: str, target: str) -> str:
             counts_str = ", ".join(f"{k}: {v}" for k, v in counts.items()) or "—"
             tie = " · tie" if det["is_tie"] else ""
             lbl = det["aggregate_label"] or "—"
-            chip = f'<span class="chip {_label_class(det["aggregate_label"])}">{_html.escape(str(lbl))}</span>'
+            chip = f'<span class="lbl-pill {_label_class(det["aggregate_label"])}">{_html.escape(str(lbl))}</span>'
             parts.append(
                 f'<div>majority {chip}{tie}<br><span style="opacity:.7">n={det["n_chunks"]} · {_html.escape(counts_str)}</span></div>'
             )
         llm = methods.get("llm")
         if llm:
             lbl = llm["aggregate_label"] or "(malformed)"
-            chip = f'<span class="chip {_label_class(llm["aggregate_label"])}">{_html.escape(str(lbl))}</span>'
+            chip = f'<span class="lbl-pill {_label_class(llm["aggregate_label"])}">{_html.escape(str(lbl))}</span>'
             parts.append(f'<div>llm consolidated {chip}</div>')
         blocks.append(f'<div class="agg">{"".join(parts)}</div>')
     return "".join(blocks)
@@ -164,6 +169,7 @@ def start_run(run_file: str):
     st.session_state.run_file = run_file
     st.session_state.entries = entries
     st.session_state.entry_idx = resume_idx
+    st.session_state.focus_span = None
 
 
 # ---------------------------------------------------------------- screens
@@ -223,58 +229,86 @@ def render_four_point(conn, entry, entry_idx):
         f'<div class="review-title">Posture toward {_html.escape(entry["target_name"])}</div>',
         unsafe_allow_html=True,
     )
-    doc = build_review_html(
-        source=speech["source"],
-        year=speech["year"],
-        heading=f"Posture toward {entry['target_name']}",
-        kind="four_point",
-        speech_text=speech["text"],
-        groups=groups,
-        aggregate_html=four_point_aggregate_html(conn, doc_id, target),
-    )
-    components.html(doc, height=780, scrolling=False)
+    assembled = assemble_spans(speech["text"], groups)
+    card_jump = assembled["card_jump"]
+
+    col_read, col_assess = st.columns([1.35, 1], gap="medium")
+    with col_read:
+        components.html(
+            build_reading_html(
+                source=speech["source"],
+                year=speech["year"],
+                heading=f"Posture toward {entry['target_name']}",
+                speech_html=assembled["speech_html"],
+                ticks_html=assembled["ticks_html"],
+                focus_span_id=st.session_state.get("focus_span"),
+            ),
+            height=800,
+            scrolling=False,
+        )
 
     save_payloads = []
-    st.markdown('<div class="verdict-hd">Your review</div>', unsafe_allow_html=True)
-    for row in rows:
-        pill = f'<span class="lbl-pill {_label_class(row["label"])}">{row["label"] or "malformed"}</span>'
-        with st.expander(f"{row['model_name']}", expanded=True):
-            st.markdown(f"Model label: {pill}", unsafe_allow_html=True)
-            key_prefix = f"fp_{entry_idx}_{row['id']}"
-            options = FOUR_POINT_LABELS
-            default_idx = options.index(row["label"]) if row["label"] in options else 0
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                corrected_label = st.selectbox(
-                    "Correct label", options, index=default_idx, key=f"{key_prefix}_label"
-                )
-            with c2:
-                flagged = st.checkbox("Flag as mistake", key=f"{key_prefix}_flag")
-            feedback = st.text_area("Feedback", key=f"{key_prefix}_feedback", height=70)
+    with col_assess:
+        st.markdown('<div class="assess-title">Machine assessment</div>', unsafe_allow_html=True)
+        agg = four_point_aggregate_html(conn, doc_id, target)
+        if agg:
+            st.markdown(agg, unsafe_allow_html=True)
 
-            original_data = {
-                "label": row["label"],
-                "ambiguous": row["ambiguous"],
-                "reasoning": row["reasoning"],
-                "evidence_quotes": row["evidence_quotes"],
-            }
-            corrected_data = None if corrected_label == row["label"] else {"label": corrected_label}
-            save_payloads.append(
-                dict(
-                    scheme="four_point",
-                    target_table="four_point_classifications",
-                    target_id=row["id"],
-                    doc_id=doc_id,
-                    chunk_id=row["chunk_id"],
-                    source=row["source"],
-                    target=row["target"],
-                    run_id=row["run_id"],
-                    original_data=original_data,
-                    corrected_data=corrected_data,
-                    is_flagged_mistake=flagged,
-                    feedback_text=feedback or None,
-                )
+        for row in rows:
+            cid = f"c{row['id']}"
+            key_prefix = f"fp_{entry_idx}_{row['id']}"
+            edited = (
+                st.session_state.get(f"{key_prefix}_label", row["label"]) != row["label"]
+                or st.session_state.get(f"{key_prefix}_flag", False)
             )
+            header = f"{row['model_name']} — {row['label'] or 'malformed'}" + ("  ✎" if edited else "")
+            with st.expander(header, expanded=False):
+                pill = f'<span class="lbl-pill {_label_class(row["label"])}">{row["label"] or "malformed"}</span>'
+                st.markdown(f"Model label: {pill}", unsafe_allow_html=True)
+                if row["reasoning"]:
+                    st.markdown(f"**Reasoning.** {row['reasoning']}")
+                for q in (row["evidence_quotes"] or []):
+                    st.markdown(f"> {q}")
+
+                if card_jump.get(cid):
+                    if st.button("Jump to text →", key=f"jump_{key_prefix}"):
+                        st.session_state.focus_span = card_jump[cid]
+                        st.rerun()
+
+                options = FOUR_POINT_LABELS
+                default_idx = options.index(row["label"]) if row["label"] in options else 0
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    corrected_label = st.selectbox(
+                        "Correct label", options, index=default_idx, key=f"{key_prefix}_label"
+                    )
+                with c2:
+                    flagged = st.checkbox("Flag as mistake", key=f"{key_prefix}_flag")
+                feedback = st.text_area("Feedback", key=f"{key_prefix}_feedback", height=70)
+
+                original_data = {
+                    "label": row["label"],
+                    "ambiguous": row["ambiguous"],
+                    "reasoning": row["reasoning"],
+                    "evidence_quotes": row["evidence_quotes"],
+                }
+                corrected_data = None if corrected_label == row["label"] else {"label": corrected_label}
+                save_payloads.append(
+                    dict(
+                        scheme="four_point",
+                        target_table="four_point_classifications",
+                        target_id=row["id"],
+                        doc_id=doc_id,
+                        chunk_id=row["chunk_id"],
+                        source=row["source"],
+                        target=row["target"],
+                        run_id=row["run_id"],
+                        original_data=original_data,
+                        corrected_data=corrected_data,
+                        is_flagged_mistake=flagged,
+                        feedback_text=feedback or None,
+                    )
+                )
     return save_payloads
 
 
@@ -331,89 +365,124 @@ def render_identity(conn, entry, entry_idx):
         )
 
     st.markdown('<div class="review-title">National self-identity</div>', unsafe_allow_html=True)
-    doc = build_review_html(
-        source=source,
-        year=speech["year"],
-        heading="National self-identity",
-        kind="identity",
-        speech_text=speech["text"],
-        groups=groups,
-        aggregate_html=identity_aggregate_html(conn, doc_id),
-    )
-    components.html(doc, height=780, scrolling=False)
+    assembled = assemble_spans(speech["text"], groups)
+    card_jump = assembled["card_jump"]
+
+    col_read, col_assess = st.columns([1.35, 1], gap="medium")
+    with col_read:
+        components.html(
+            build_reading_html(
+                source=source,
+                year=speech["year"],
+                heading="National self-identity",
+                speech_html=assembled["speech_html"],
+                ticks_html=assembled["ticks_html"],
+                focus_span_id=st.session_state.get("focus_span"),
+            ),
+            height=800,
+            scrolling=False,
+        )
 
     save_payloads = []
-    st.markdown('<div class="verdict-hd">Your review</div>', unsafe_allow_html=True)
-    for classification in classifications:
-        claims_summary = json.dumps(
-            {
-                "reasoning": classification["reasoning"],
-                "claims": [
-                    {
-                        "identity_label": c["identity_label"],
-                        "valence": c["valence"],
-                        "orientation": c["orientation"],
-                        "evidence_quotes": c["evidence_quotes"],
-                        "significant_others": [
-                            {"name": so["name"], "other_type": so["other_type"], "relation": so["relation"]}
-                            for so in c["significant_others"]
-                        ],
-                    }
-                    for c in classification["claims"]
-                ],
-            },
-            indent=2,
-        )
-        with st.expander(
-            f"{classification['model_name']} — {len(classification['claims'])} claim(s)", expanded=True
-        ):
+    with col_assess:
+        st.markdown('<div class="assess-title">Machine assessment</div>', unsafe_allow_html=True)
+        agg = identity_aggregate_html(conn, doc_id)
+        if agg:
+            st.markdown(agg, unsafe_allow_html=True)
+
+        for classification in classifications:
+            cid = f"i{classification['id']}"
+            claims_summary = json.dumps(
+                {
+                    "reasoning": classification["reasoning"],
+                    "claims": [
+                        {
+                            "identity_label": c["identity_label"],
+                            "valence": c["valence"],
+                            "orientation": c["orientation"],
+                            "evidence_quotes": c["evidence_quotes"],
+                            "significant_others": [
+                                {"name": so["name"], "other_type": so["other_type"], "relation": so["relation"]}
+                                for so in c["significant_others"]
+                            ],
+                        }
+                        for c in classification["claims"]
+                    ],
+                },
+                indent=2,
+            )
             key_prefix = f"id_{entry_idx}_{classification['id']}"
-            corrected_json_text = st.text_area(
-                "Corrected claims (JSON, optional — edit to correct)",
-                value=claims_summary,
-                height=200,
-                key=f"{key_prefix}_json",
+            edited = bool(st.session_state.get(f"{key_prefix}_flag", False))
+            n_claims = len(classification["claims"])
+            header = (
+                f"{classification['model_name']} — {n_claims} claim(s)" + ("  ✎" if edited else "")
             )
-            flagged = st.checkbox("Flag as mistake", key=f"{key_prefix}_flag")
-            feedback = st.text_area("Feedback", key=f"{key_prefix}_feedback", height=70)
-
-            original_data = {
-                "reasoning": classification["reasoning"],
-                "claims": [
-                    {
-                        "identity_label": c["identity_label"],
-                        "valence": c["valence"],
-                        "orientation": c["orientation"],
-                        "evidence_quotes": c["evidence_quotes"],
-                        "significant_others": [dict(so) for so in c["significant_others"]],
-                    }
-                    for c in classification["claims"]
-                ],
-            }
-            corrected_data = None
-            try:
-                edited = json.loads(corrected_json_text)
-                if edited != json.loads(claims_summary):
-                    corrected_data = edited
-            except json.JSONDecodeError:
-                st.warning("Corrected claims JSON is invalid — will not be saved until fixed.")
-
-            save_payloads.append(
-                dict(
-                    scheme="identity",
-                    target_table="identity_classifications",
-                    target_id=classification["id"],
-                    doc_id=doc_id,
-                    chunk_id=classification["chunk_id"],
-                    source=classification["source"],
-                    target=classification["target"],
-                    run_id=classification["run_id"],
-                    original_data=original_data,
-                    corrected_data=corrected_data,
-                    is_flagged_mistake=flagged,
-                    feedback_text=feedback or None,
+            with st.expander(header, expanded=False):
+                st.markdown(
+                    f'<span class="lbl-pill lbl-identity">{n_claims} claim(s)</span>',
+                    unsafe_allow_html=True,
                 )
-            )
+                if classification["reasoning"]:
+                    st.markdown(f"**Reasoning.** {classification['reasoning']}")
+                for c in classification["claims"]:
+                    line = f"- **{c['identity_label']}** — {c['valence']} · {c['orientation']}"
+                    st.markdown(line)
+                    for so in c["significant_others"]:
+                        st.markdown(
+                            f"    - {so['name']} _({so['other_type']}, {so['relation']})_"
+                        )
+
+                if card_jump.get(cid):
+                    if st.button("Jump to text →", key=f"jump_{key_prefix}"):
+                        st.session_state.focus_span = card_jump[cid]
+                        st.rerun()
+
+                corrected_json_text = st.text_area(
+                    "Corrected claims (JSON, optional — edit to correct)",
+                    value=claims_summary,
+                    height=200,
+                    key=f"{key_prefix}_json",
+                )
+                flagged = st.checkbox("Flag as mistake", key=f"{key_prefix}_flag")
+                feedback = st.text_area("Feedback", key=f"{key_prefix}_feedback", height=70)
+
+                original_data = {
+                    "reasoning": classification["reasoning"],
+                    "claims": [
+                        {
+                            "identity_label": c["identity_label"],
+                            "valence": c["valence"],
+                            "orientation": c["orientation"],
+                            "evidence_quotes": c["evidence_quotes"],
+                            "significant_others": [dict(so) for so in c["significant_others"]],
+                        }
+                        for c in classification["claims"]
+                    ],
+                }
+                corrected_data = None
+                try:
+                    parsed = json.loads(corrected_json_text)
+                    if parsed != json.loads(claims_summary):
+                        corrected_data = parsed
+                except json.JSONDecodeError:
+                    st.warning("Corrected claims JSON is invalid — will not be saved until fixed.")
+
+                save_payloads.append(
+                    dict(
+                        scheme="identity",
+                        target_table="identity_classifications",
+                        target_id=classification["id"],
+                        doc_id=doc_id,
+                        chunk_id=classification["chunk_id"],
+                        source=classification["source"],
+                        target=classification["target"],
+                        run_id=classification["run_id"],
+                        original_data=original_data,
+                        corrected_data=corrected_data,
+                        is_flagged_mistake=flagged,
+                        feedback_text=feedback or None,
+                    )
+                )
     return save_payloads
 
 
@@ -470,12 +539,14 @@ def main_screen():
         with col_prev:
             if st.button("← Previous", disabled=(entry_idx == 0)):
                 st.session_state.entry_idx -= 1
+                st.session_state.focus_span = None
                 st.rerun()
         with col_save:
             if st.button("Save & Next →", type="primary"):
                 for payload in save_payloads:
                     save_annotation(conn, annotator_name=st.session_state.annotator_name, **payload)
                 st.session_state.entry_idx += 1
+                st.session_state.focus_span = None
                 st.rerun()
 
 
