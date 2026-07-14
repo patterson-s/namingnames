@@ -19,6 +19,8 @@ from eval_queries import (
     get_annotated_keys,
     save_annotation,
     progress_for_annotator,
+    progress_all_annotators,
+    speech_progress,
 )
 from highlight import find_surface_form_spans, find_quote_span
 from review_render import assemble_spans, build_reading_html, _label_class
@@ -172,14 +174,42 @@ def find_resume_index(conn, entries, done_keys) -> int:
     return max(len(entries) - 1, 0)
 
 
+def build_speech_index(conn, entries):
+    """Ordered, de-duplicated speech list for the jump picker. Order = first
+    appearance in entries; first_idx = index of the speech's first entry."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT iso3, name FROM countries")
+        names = {r["iso3"]: r["name"] for r in cur.fetchall()}
+
+    speeches = []
+    by_doc = {}
+    for i, entry in enumerate(entries):
+        doc_id = entry["doc_id"]
+        if doc_id not in by_doc:
+            speech = get_speech(conn, doc_id)
+            rec = {
+                "doc_id": doc_id,
+                "source_name": names.get(speech["source"], speech["source"]),
+                "year": speech["year"],
+                "first_idx": i,
+                "n_targets": 0,
+            }
+            by_doc[doc_id] = rec
+            speeches.append(rec)
+        by_doc[doc_id]["n_targets"] += 1
+    return speeches
+
+
 def start_run(run_file: str):
     with get_conn() as conn:
         doc_ids = cached_doc_ids(run_file)
         entries = build_entries(conn, doc_ids)
         done_keys = get_annotated_keys(conn, st.session_state.annotator_name)
         resume_idx = find_resume_index(conn, entries, done_keys)
+        speeches = build_speech_index(conn, entries)
     st.session_state.run_file = run_file
     st.session_state.entries = entries
+    st.session_state.speeches = speeches
     st.session_state.entry_idx = resume_idx
     st.session_state.focus_span = None
 
@@ -192,6 +222,17 @@ def name_entry_screen():
         unsafe_allow_html=True,
     )
     st.caption("Read the primary source. Countersign or correct the machine's read.")
+
+    with get_conn() as conn:
+        overall = progress_all_annotators(conn)
+    total = overall["total"]
+    if overall["annotators"] and total:
+        st.markdown('<div class="assess-title">Progress by evaluator</div>', unsafe_allow_html=True)
+        for a in overall["annotators"]:
+            done = a["done"]
+            st.progress(min(done / total, 1.0), text=f"{a['name']} — {done} / {total}")
+    else:
+        st.caption("No annotations recorded yet.")
 
     runs = list_evaluation_runs()
     name = st.text_input("Your name")
@@ -514,6 +555,40 @@ def run_switcher():
             st.rerun()
 
 
+def speech_picker(conn):
+    """Sidebar selector to jump directly to any speech's first entry."""
+    speeches = st.session_state.get("speeches") or []
+    if not speeches:
+        return
+    entries = st.session_state.entries
+    entry_idx = st.session_state.entry_idx
+    current_doc = entries[entry_idx]["doc_id"] if entry_idx < len(entries) else None
+
+    doc_ids = [s["doc_id"] for s in speeches]
+    prog = speech_progress(conn, st.session_state.annotator_name, doc_ids)
+
+    def _label(i: int) -> str:
+        s = speeches[i]
+        p = prog.get(s["doc_id"], {})
+        mark = "✓ " if p.get("total") and p["done"] >= p["total"] else ""
+        return f'{mark}{s["source_name"]} {s["year"]} · {s["n_targets"]} target(s)'
+
+    current_pos = next(
+        (i for i, s in enumerate(speeches) if s["doc_id"] == current_doc), 0
+    )
+    with st.sidebar:
+        choice = st.selectbox(
+            "Jump to speech",
+            range(len(speeches)),
+            index=current_pos,
+            format_func=_label,
+        )
+    if current_doc is not None and speeches[choice]["doc_id"] != current_doc:
+        st.session_state.entry_idx = speeches[choice]["first_idx"]
+        st.session_state.focus_span = None
+        st.rerun()
+
+
 def main_screen():
     run_switcher()
     entries = st.session_state.entries
@@ -526,6 +601,9 @@ def main_screen():
     )
 
     with get_conn() as conn:
+        speech_picker(conn)
+        entry_idx = st.session_state.entry_idx
+
         progress = progress_for_annotator(conn, st.session_state.annotator_name)
         st.progress(progress["fraction"], text=f"{progress['done']} / {progress['total']} rows annotated")
 
@@ -545,10 +623,15 @@ def main_screen():
         else:
             save_payloads = render_four_point(conn, entry, entry_idx)
 
-        col_prev, col_save, _ = st.columns([1, 1, 3])
+        col_prev, col_next, col_save, _ = st.columns([1, 1, 1, 2])
         with col_prev:
             if st.button("← Previous", disabled=(entry_idx == 0)):
                 st.session_state.entry_idx -= 1
+                st.session_state.focus_span = None
+                st.rerun()
+        with col_next:
+            if st.button("Next →", disabled=(entry_idx >= len(entries) - 1)):
+                st.session_state.entry_idx += 1
                 st.session_state.focus_span = None
                 st.rerun()
         with col_save:

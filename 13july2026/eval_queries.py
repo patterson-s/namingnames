@@ -228,3 +228,48 @@ def progress_for_annotator(conn, annotator_name: str) -> Dict[str, int]:
 
     total = total_fp + total_id
     return {"done": done, "total": total, "fraction": (done / total) if total else 0.0}
+
+
+def progress_all_annotators(conn) -> Dict[str, Any]:
+    """DB-wide progress broken down by annotator (mirrors progress_for_annotator's
+    total). Used for the per-evaluator bars on the landing page."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS n FROM four_point_classifications")
+        total_fp = cur.fetchone()["n"]
+        cur.execute("SELECT COUNT(*) AS n FROM identity_classifications")
+        total_id = cur.fetchone()["n"]
+        cur.execute(
+            "SELECT annotator_name, COUNT(*) AS done FROM annotations "
+            "GROUP BY annotator_name ORDER BY done DESC"
+        )
+        annotators = [
+            {"name": r["annotator_name"], "done": r["done"]} for r in cur.fetchall()
+        ]
+    return {"total": total_fp + total_id, "annotators": annotators}
+
+
+def speech_progress(
+    conn, annotator_name: str, doc_ids: List[str]
+) -> Dict[str, Dict[str, int]]:
+    """Per-speech {doc_id: {"done", "total"}} for the given annotator, scoped to
+    doc_ids. A speech is complete when done >= total. Used to mark ✓ in the picker."""
+    progress: Dict[str, Dict[str, int]] = {d: {"done": 0, "total": 0} for d in doc_ids}
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT doc_id, COUNT(*) AS n FROM four_point_classifications "
+            "WHERE doc_id = ANY(%s) GROUP BY doc_id "
+            "UNION ALL "
+            "SELECT doc_id, COUNT(*) AS n FROM identity_classifications "
+            "WHERE doc_id = ANY(%s) GROUP BY doc_id",
+            (doc_ids, doc_ids),
+        )
+        for r in cur.fetchall():
+            progress[r["doc_id"]]["total"] += r["n"]
+        cur.execute(
+            "SELECT doc_id, COUNT(*) AS n FROM annotations "
+            "WHERE annotator_name = %s AND doc_id = ANY(%s) GROUP BY doc_id",
+            (annotator_name, doc_ids),
+        )
+        for r in cur.fetchall():
+            progress[r["doc_id"]]["done"] += r["n"]
+    return progress
