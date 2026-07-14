@@ -27,6 +27,22 @@ def _overlap(a: Span, b: Span) -> bool:
     return not (a[1] <= b[0] or a[0] >= b[1])
 
 
+def _merge_spans(spans: List[Span]) -> List[Span]:
+    """Merge overlapping/adjacent spans into a minimal non-overlapping, sorted
+    set. Used for chunk regions: several model cards cite the same chunk, so
+    their chunk spans collapse to one highlighted passage."""
+    if not spans:
+        return []
+    ordered = sorted(spans)
+    merged = [list(ordered[0])]
+    for a, b in ordered[1:]:
+        if a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    return [(a, b) for a, b in merged]
+
+
 def _label_class(label: Optional[str]) -> str:
     if label in LABEL_ORDER:
         return f"lbl-{label}"
@@ -91,30 +107,68 @@ def assemble_spans(speech_text: str, groups: List[Dict[str, Any]]) -> Dict[str, 
                     break
         card_jump[cid] = chosen
 
-    # render speech + ticks
+    # chunk regions: the full cited passage behind each mention, so several
+    # mentions of the same target read as one bounded excerpt. Overlapping
+    # chunks (same passage cited by different model cards) collapse into one.
+    regions = _merge_spans([g["chunk_span"] for g in groups if g.get("chunk_span")])
+
+    # render speech + ticks via an event stream so chunk-region spans can be
+    # closed and reopened across paragraph breaks (a raw <span> straddling
+    # </p><p> would be silently severed by the browser).
+    events: List[Tuple[int, int, str, Any]] = []
+    for rs, re_ in regions:
+        events.append((rs, 2, "ropen", None))
+        events.append((re_, 1, "rclose", None))
+    for s, e, k in ordered:
+        events.append((s, 3, "iopen", (s, e, k)))
+        events.append((e, 0, "iclose", None))
+    events.sort(key=lambda ev: (ev[0], ev[1]))
+
     out: List[str] = []
     ticks: List[str] = []
+    open_stack: List[str] = []  # reopen-HTML for tags open across a paragraph break
+
+    def emit_text(seg: str) -> None:
+        parts = seg.split("\n\n")
+        for i, part in enumerate(parts):
+            out.append(html.escape(part).replace("\n", "<br>"))
+            if i < len(parts) - 1:  # paragraph break: re-wrap open spans around it
+                out.extend("</span>" for _ in open_stack)
+                out.append("</p><p>")
+                out.extend(open_stack)
+
     pos = 0
-    for s, e, k in ordered:
-        if s < pos:
-            continue
-        out.append(html.escape(speech_text[pos:s]))
-        seg = html.escape(speech_text[s:e])
-        sid = span_id[(s, e)]
-        if k == "target":
-            lc = _label_class(_plurality(target_labels[(s, e)]))
-            out.append(f'<span id="{sid}" class="mention {lc}">{seg}</span>')
-            frac = (s / text_len) * 100.0
-            ticks.append(
-                f'<button class="tick {lc}" style="top:{frac:.3f}%" '
-                f"title=\"jump to mention\" onclick=\"jump('{sid}')\"></button>"
-            )
-        else:
-            out.append(f'<span id="{sid}" class="quote">{seg}</span>')
-        pos = e
-    out.append(html.escape(speech_text[pos:]))
-    speech_html = "".join(out).replace("\n\n", "</p><p>").replace("\n", "<br>")
-    speech_html = f"<p>{speech_html}</p>"
+    for p, _prio, typ, data in events:
+        if p > pos:
+            emit_text(speech_text[pos:p])
+            pos = p
+        if typ == "ropen":
+            out.append('<span class="chunk-region">')
+            open_stack.append('<span class="chunk-region">')
+        elif typ == "rclose":
+            out.append("</span>")
+            open_stack.pop()
+        elif typ == "iopen":
+            s, e, k = data
+            sid = span_id[(s, e)]
+            if k == "target":
+                lc = _label_class(_plurality(target_labels[(s, e)]))
+                out.append(f'<span id="{sid}" class="mention {lc}">')
+                open_stack.append(f'<span class="mention {lc}">')  # reopen sans id
+                frac = (s / text_len) * 100.0
+                ticks.append(
+                    f'<button class="tick {lc}" style="top:{frac:.3f}%" '
+                    f"title=\"jump to mention\" onclick=\"jump('{sid}')\"></button>"
+                )
+            else:
+                out.append(f'<span id="{sid}" class="quote">')
+                open_stack.append('<span class="quote">')
+        elif typ == "iclose":
+            out.append("</span>")
+            open_stack.pop()
+    emit_text(speech_text[pos:])
+
+    speech_html = f"<p>{''.join(out)}</p>"
 
     return {"speech_html": speech_html, "ticks_html": "".join(ticks), "card_jump": card_jump}
 
@@ -191,9 +245,19 @@ body {{ font-family:'IBM Plex Sans',system-ui,sans-serif; color:var(--ink); -web
   color:#23262d; max-width:60ch;
 }}
 .speech p {{ margin:0 0 1.1em 0; }}
+/* Chunk bands are invisible until you jump to one — only the pertinent
+   passage lights up, so the reading pane stays calm by default. */
+.chunk-region {{
+  border-radius:3px; padding:2px 0; transition:background .25s, box-shadow .25s;
+  -webkit-box-decoration-break:clone; box-decoration-break:clone;
+}}
+.chunk-region.active {{
+  background:rgba(47,95,208,.15); box-shadow:inset 2px 0 0 rgba(47,95,208,.7);
+}}
 .mention {{
   padding:0 1px; border-radius:2px; border-bottom:2px solid var(--c-none);
   transition:background .2s; --pulse:var(--blue); scroll-margin:40vh;
+  -webkit-box-decoration-break:clone; box-decoration-break:clone;
 }}
 .mention.lbl-confrontation {{ border-color:var(--c-confrontation); background:rgba(192,57,43,.07); --pulse:var(--c-confrontation); }}
 .mention.lbl-competition   {{ border-color:var(--c-competition);  background:rgba(184,121,31,.08); --pulse:var(--c-competition); }}
@@ -225,15 +289,20 @@ body {{ font-family:'IBM Plex Sans',system-ui,sans-serif; color:var(--ink); -web
     const e = document.getElementById(id); if (!e) return;
     e.classList.remove('pulsing'); void e.offsetWidth; e.classList.add('pulsing');
   }}
+  function markRegion(id) {{
+    document.querySelectorAll('.chunk-region.active').forEach(r => r.classList.remove('active'));
+    const e = document.getElementById(id); if (!e) return;
+    const r = e.closest('.chunk-region'); if (r) r.classList.add('active');
+  }}
   function jump(id) {{
     const e = document.getElementById(id); if (!e) return;
     e.scrollIntoView({{behavior:'smooth', block:'center'}});
-    pulse(id);
+    markRegion(id); pulse(id);
   }}
   window.addEventListener('DOMContentLoaded', function() {{
     if (FOCUS) {{
       const e = document.getElementById(FOCUS);
-      if (e) {{ e.scrollIntoView({{block:'center'}}); pulse(FOCUS); }}
+      if (e) {{ e.scrollIntoView({{block:'center'}}); markRegion(FOCUS); pulse(FOCUS); }}
     }}
   }});
 </script>

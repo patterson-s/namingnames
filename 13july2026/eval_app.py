@@ -71,6 +71,13 @@ st.markdown(
     .agg-run { font-family:'IBM Plex Mono',monospace; font-size:.66rem; color:#8a8577;
                text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:3px; }
     .stButton>button { border-radius:7px; font-weight:600; }
+    /* Pin the reading pane so it stays at eye level while the assessment
+       column scrolls beside it. Scoped to the one row holding the iframe.
+       Matches both the old ("column") and new ("stColumn") Streamlit test-ids. */
+    div[data-testid="stHorizontalBlock"]:has(iframe) > div[data-testid="column"]:first-child,
+    div[data-testid="stHorizontalBlock"]:has(iframe) > div[data-testid="stColumn"]:first-child {
+        position:sticky; top:0.75rem; align-self:flex-start; z-index:3;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -264,6 +271,8 @@ def render_four_point(conn, entry, entry_idx):
             sp = find_quote_span(row["chunk_text"], row["chunk_start"], q)
             if sp:
                 qspans.append(sp)
+        cs = row["chunk_start"]
+        chunk_span = (cs, min(cs + len(row["chunk_text"]), len(speech["text"])))
         groups.append(
             {
                 "card_id": f"c{row['id']}",
@@ -274,6 +283,7 @@ def render_four_point(conn, entry, entry_idx):
                 "quotes": row["evidence_quotes"] or [],
                 "target_spans": tspans,
                 "quote_spans": qspans,
+                "chunk_span": chunk_span,
                 "malformed": row["malformed"],
             }
         )
@@ -402,6 +412,8 @@ def render_identity(conn, entry, entry_idx):
                     ],
                 }
             )
+        cs = classification["chunk_start"]
+        chunk_span = (cs, min(cs + len(classification["chunk_text"]), len(speech["text"])))
         groups.append(
             {
                 "card_id": f"i{classification['id']}",
@@ -412,6 +424,7 @@ def render_identity(conn, entry, entry_idx):
                 "quotes": quotes_flat,
                 "target_spans": tspans,
                 "quote_spans": qspans,
+                "chunk_span": chunk_span,
                 "claims": claims_norm,
             }
         )
