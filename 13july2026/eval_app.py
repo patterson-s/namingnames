@@ -25,6 +25,18 @@ from review_render import assemble_spans, build_reading_html, _label_class
 
 FOUR_POINT_LABELS = ["confrontation", "competition", "cooperation", "indifference"]
 
+
+def render_html_iframe(doc: str, height: int) -> None:
+    """Embed a self-contained HTML document (with its own JS) in a sandboxed
+    iframe. `st.iframe` is the supported API on newer Streamlit; the deprecated
+    `st.components.v1.html` (removed after 2026-06-01) is the fallback for older
+    versions that predate `st.iframe`."""
+    if hasattr(st, "iframe"):
+        st.iframe(doc, height=height)
+    else:
+        components.html(doc, height=height, scrolling=False)
+
+
 st.set_page_config(page_title="Naming Names — Annotation Console", layout="wide")
 
 # ---------------------------------------------------------------- global chrome
@@ -234,7 +246,7 @@ def render_four_point(conn, entry, entry_idx):
 
     col_read, col_assess = st.columns([1.35, 1], gap="medium")
     with col_read:
-        components.html(
+        render_html_iframe(
             build_reading_html(
                 source=speech["source"],
                 year=speech["year"],
@@ -243,8 +255,7 @@ def render_four_point(conn, entry, entry_idx):
                 ticks_html=assembled["ticks_html"],
                 focus_span_id=st.session_state.get("focus_span"),
             ),
-            height=800,
-            scrolling=False,
+            800,
         )
 
     save_payloads = []
@@ -370,7 +381,7 @@ def render_identity(conn, entry, entry_idx):
 
     col_read, col_assess = st.columns([1.35, 1], gap="medium")
     with col_read:
-        components.html(
+        render_html_iframe(
             build_reading_html(
                 source=source,
                 year=speech["year"],
@@ -379,8 +390,7 @@ def render_identity(conn, entry, entry_idx):
                 ticks_html=assembled["ticks_html"],
                 focus_span_id=st.session_state.get("focus_span"),
             ),
-            height=800,
-            scrolling=False,
+            800,
         )
 
     save_payloads = []
